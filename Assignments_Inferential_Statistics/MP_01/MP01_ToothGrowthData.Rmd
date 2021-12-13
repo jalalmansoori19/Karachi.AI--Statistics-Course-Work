@@ -1,0 +1,168 @@
+---
+title: "MP01_Part01_ToothGrowthData"
+author: "Jalal Mansoori"
+date: "11/8/2020"
+output: html_document
+---
+
+## Exploratory Data Analysis
+
+```{r}
+#loading necessary packages
+library(tidyverse)
+```
+
+
+```{r}
+#loading ToothGrowth dataset
+data("ToothGrowth")
+# Getting info about internal structure of the data
+str(ToothGrowth)
+```
+## Description
+
+Title: The Effect of Vitamin C on Tooth Growth in Guinea Pigs
+
+In ToothGrowth dataset we have 60 observations and 3 variables and each observation consists information about the measure of:
+
+1) len: Length of Tooth 
+
+2) supp: Vitamin C Supplement given to each animal in the form of Orange juice(OJ) or ascorbic acid (VC) 
+
+3) dose: The amount of dose levels of Vitamin C (0.5, 1, 2) in milligrams/day   
+
+Now let's get started
+
+```{r}
+#Getting first few values in ToothGrowth Data
+head(ToothGrowth)
+```
+
+
+##Univariate analysis
+
+How many animals received Supplement of Vitamin C in the form of orange juice and ascorbic acid?
+
+```{r}
+ToothGrowth %>% 
+  group_by(supp) %>% count(supp)
+```
+50% of total animals in ToothGrowth dataset received Vitamin C in the form of Orange Juice (OJ) and Other 50% received Vitamin C in the form of ascorbic acid (VC)
+
+
+Summary Statistics of Tooth Length
+```{r}
+summary(ToothGrowth$len)
+```
+Above summary statistics suggests that:
+
+1) 50% of Tooth Length is below and above 19.25 (Median) (2nd Quartile)
+2) The Average length is 18.81 (Mean)
+3) 25% of Tooth Length is below 13.07 (1st Quartile)
+4) 75% of Tooth Length is below 25.27 (3rd Quartile)
+5) Min length is 4.20 and Max length is 33.90
+
+## Plotting the distribution of Tooth Length Using Box Plot
+```{r}
+ggplot(data= ToothGrowth, aes(y = len)) +
+  geom_boxplot()
+
+```
+
+## Plotting the distribution of Tooth Length using Histogram
+```{r}
+ggplot(data=ToothGrowth, aes(x=len)) + 
+geom_histogram(binwidth = 1)
+
+```
+
+
+## Bivariate Analysis
+
+Average Tooth Length based on the given Supplement type OJ or VC
+
+```{r}
+ToothGrowth %>% 
+  group_by(supp) %>%
+  summarise(Avg_Tooth_Length = mean(len), Standard_deviation=sd(len))
+```
+## Ploting Distribution of Tooth Length based on Supplement using Box plot
+```{r}
+ggplot(data=ToothGrowth , aes(x=supp, y=len, color=supp)) + 
+  geom_boxplot()
+```
+50% of animals that were given vitamin C in the form of Orange Juice has tooth length below approx 21
+
+50% of animals that were given vitamin C in the form of ascorbic acid has tooth length below approx 14
+
+```{r}
+ToothGrowth %>% 
+  group_by(dose) %>%
+  summarise(Avg_Tooth_Length = mean(len))
+```
+Summary table suggests that the average tooth length is greater in the animals that received 2 level dose of Vitamin C
+
+
+We can also plot the distribution of Tooth length with respect to dose variable using side by side box plot. For that first we need to convert the data type of dose from numeric to factor
+
+```{r}
+#Converting dose data type from numeric to factor
+ToothGrowth$dose <- as.factor(ToothGrowth$dose) 
+```
+
+
+```{r}
+ggplot(ToothGrowth, aes(x=dose, y=len, color=dose)) +
+  geom_boxplot()
+```
+In above side by side box plot we can see only one outlier in the observations who received 0.5 level of dose.
+50% of tooth length is greater than or below approx 10 in 0.5 dose level
+50% of tooth length is greater than or below approx 19 in 1 dose level
+50% of tooth length is greater than or below approx 26 in 2 dose level
+
+
+## Confidence Interval
+
+Objective is to compare the mean tooth length of animals based on the supplement given i.e Orange juice or ascorbic acid. So first we'll calculate the 95% confidence interval for true population mean of tooth length with respect to Orange Juice Supplement and then for ascorbic acid 
+
+```{r}
+
+#Calculating the Sample mean and Sample Standard deviation of Tooth Length With respect to given Supplement type
+
+ToothGrowth %>% 
+  group_by(supp) %>%
+  summarise(Avg_Tooth_Length = mean(len), Standard_deviation=sd(len))
+```
+```{r}
+# Calculating 95% Confidence Interval for True Population mean of animals Tooth length that were given orange juice
+
+#Sampling observations that were given Orange Juice
+
+sample_OJ <- ToothGrowth %>%
+  filter(supp=='OJ')
+
+Standard_Err_OJ <- sd(sample_OJ$len)/ sqrt(length(sample_OJ$len))
+
+#Confidence Interval using t distribution
+mean(sample_OJ$len) + c(-1,1)*qt(0.975, df= length(sample_OJ$len) - 1 ) * Standard_Err_OJ  
+```
+We are 95% Confident that the true population mean of Animals Tooth Length that were given Orange Juice Supplement is between 18.2 % and 23.1%
+
+Now calculating 95% Confidence Interval for True Population mean of animals Tooth length that were given ascorbic acid
+
+```{r}
+#Sampling observations that were given Orange Juice
+
+sample_VC <- ToothGrowth %>%
+  filter(supp=='VC')
+
+Standard_Err_VC <- sd(sample_VC$len)/ sqrt(length(sample_VC$len))
+
+#Confidence Interval using t distribution
+mean(sample_VC$len) + c(-1,1)*qt(0.975, df= length(sample_VC$len) - 1 ) * Standard_Err_VC  
+```
+We are 95% Confident that the true population mean of Animals Tooth Length that were given ascorbic acid Supplement is between 14% % and 20.0%
+
+So if we compare the confident intervals of both supplements then it's more likely that animals that were given 
+Vitamin C in the form of Orange Juice has plausible range of Greater Tooth Length
+

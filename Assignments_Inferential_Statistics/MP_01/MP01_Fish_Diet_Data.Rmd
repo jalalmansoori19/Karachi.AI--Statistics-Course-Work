@@ -1,0 +1,75 @@
+---
+title: "MP01_Part02_Fish_Diet_Data"
+author: "Jalal Mansoori"
+date: "11/8/2020"
+output: html_document
+---
+
+```{r}
+#Loading necessary packages
+library(tidyverse)
+```
+
+## Exploratory Data Analysis
+
+```{r}
+# Loading the fish_diet dataset
+
+df_fishDiet <- read.csv('fish-diet.csv')
+str(df_fishDiet)
+```
+So we have 2 categorical variable fish_in_diet and cancer.
+
+```{r}
+#Getting first few values in the dataset
+head(df_fishDiet)
+```
+
+```{r}
+#Count the data with respect to the values in each variable
+# For Proportion of fish present in diet
+df_fishDiet %>%
+  count(fish_in_diet) %>%
+  mutate(p = n /sum(n))
+
+```
+```{r}
+#Plotting the bar plot
+
+ggplot(data= df_fishDiet, aes(x= fish_in_diet)) + 
+  geom_bar()
+```
+
+
+```{r}
+# For Proportion of Cancer
+df_fishDiet %>%
+  count(cancer) %>%
+  mutate(p = n /sum(n))
+```
+```{r}
+#Plotting the bar plot
+
+ggplot(data= df_fishDiet, aes(x= cancer)) + 
+  geom_bar()
+```
+
+## Estimating the True Population proportion for swedish men that have prostate cancer based on the given dataset (considering any amount of fish diet)
+
+
+We know that the sample proportion of Swedish men having cancer is 7.42%.
+
+```{r}
+#Calculating 95% confidence interval for true population proportion of Swedish men having cancer (considering any amount of fish present in their diet)
+
+
+phat<- 0.0742
+standard_error <- sqrt(phat*(1 - phat)/length(df_fishDiet$cancer)) 
+
+phat + c(-1, 1) * qnorm(0.975)*standard_error
+```
+We are 95% Confident that the true population proportion of Swedish men having cancer is in between 6.8% and 8.1%
+
+
+
+

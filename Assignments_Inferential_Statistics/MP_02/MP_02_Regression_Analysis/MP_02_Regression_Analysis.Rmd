@@ -1,0 +1,254 @@
+---
+title: "MP-02: Regression Analysis"
+author: "Jalal Mansoori"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+#loading necessary libraries
+library(tidyverse)
+library(statsr)
+```
+
+### Exploring data
+
+```{r}
+#loading Ames Housing price dataset
+df_hprice <- read_csv("train.csv")
+
+#Checking dimensions of the dataset
+dim(df_hprice)
+```
+So we have 1460 rows or (Information about 1460 houses)
+and 81 columns or (explanatory variables about each houses)
+
+There's an Id column in our dataset. Not relevant for analysis So removing it 
+```{r}
+df_hprice <- subset(df_hprice, select= -Id)
+
+head(df_hprice)
+```
+
+Now we have 80 explanatory variables
+
+Let's explore the nature of data in each explanatory variable
+```{r}
+str(df_hprice)
+```
+
+So there are many numeric and categorical variables. let's
+summarize them to get the count of each data type
+
+```{r}
+table(unlist(lapply(df_hprice, class)))
+```
+
+Okay, we have 37 numeric variables and 43 character!
+
+Our main objective is to model the variation in price of house. So for that we need to change these 43 character variable to factor data type.
+
+```{r}
+#This function will convert all character variables to factor data type
+df_hprice <- mutate_if(df_hprice, is.character, as.factor)
+```
+
+Let's verify
+
+```{r}
+table(unlist(lapply(df_hprice, class)))
+```
+
+### Handling NULL values
+
+
+```{r}
+#Percentage of Null values in each column
+perc_null_col<-colSums(is.na(df_hprice)) /  dim(df_hprice)[1]
+perc_null_col
+```
+ Let's visualize to get the idea, are there any columns where percentage of null values is > 80 or 90 %?
+ 
+```{r}
+barplot(perc_null_col)
+```
+ 
+We can see in the bar plot, there are columns such as Fence, MiscFeature, PoolQC, Alley,... with > 80 % of Null values.
+
+I think it's better to remove columns that have higher Percentages of Null values.
+
+```{r}
+
+#Columns that have percentage of Null values >= 70%
+subset(perc_null_col, perc_null_col>=0.70)
+
+```
+
+```{r}
+
+# Removing columns that have percentage of Null values >= 70%
+df_hprice <- subset(df_hprice, select= -c(Alley, PoolQC,                                                   Fence, MiscFeature)  )
+
+```
+
+After Removing columns that have perc Null values >=0.70, We are left with 76 variables, but still there are some null values that we need to handle.
+
+So just to get started quickly into regression analysis. 
+
+
+Filling the Null values with mean in Numeric data variables
+
+```{r}
+#Getting the numeric data type columns and filling it with it's mean
+
+library(zoo)
+
+df_hprice_numCol <- sapply(df_hprice, is.numeric)
+
+df_hprice[df_hprice_numCol]<-lapply(df_hprice[df_hprice_numCol],na.aggregate) # na.aggregate is mean
+
+```
+
+Now we are left with Null values in Categorical Variables
+```{r}
+
+#Null values in categorical variables in Ames housing price dataset
+subset(colSums(is.na(df_hprice)), colSums(is.na(df_hprice)) > 0)
+```
+
+In above explanatory variables only (MasVnrType and Electrical)
+have true Null values. So we 'ill replace it with Mode
+
+In variables such as (BsmtQual, BsmtCond, ..., GarageCond), we need to replace NA -> None. Because these variables have None as actual value in Ames housing price data description.
+
+```{r}
+#Function to get mode of column 
+getmode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
+
+# Replacing Null value in (MasVnrType and Electrical) with mode
+df_hprice$MasVnrType[is.na(df_hprice$MasVnrType)]= getmode(df_hprice$MasVnrType)
+
+df_hprice$Electrical[is.na(df_hprice$Electrical)]= getmode(df_hprice$Electrical)
+
+# Verifying 
+subset(colSums(is.na(df_hprice)), colSums(is.na(df_hprice)) > 0)
+
+
+```
+
+Atlast we need to replace above variables with Null -> "None"
+
+```{r}
+df_hprice <- mutate_if(df_hprice, is.factor, as.character)
+df_hprice[is.na(df_hprice)] = "None"
+
+#Converting character to factor
+df_hprice <- mutate_if(df_hprice, is.character, as.factor)
+
+```
+
+Now we have clean dataset with zero (NULL values)
+
+```{r}
+
+colSums(is.na(df_hprice))
+
+```
+### Changing the Date related variables to factor
+
+```{r}
+df_hprice$YearBuilt <- as.factor(df_hprice$YearBuilt)
+df_hprice$YearRemodAdd <- as.factor(df_hprice$YearRemodAdd)
+df_hprice$GarageYrBlt <- as.factor(df_hprice$GarageYrBlt)
+df_hprice$YrSold <- as.factor(df_hprice$YrSold)
+df_hprice$MoSold <- as.factor(df_hprice$MoSold)
+
+```
+
+### Starting with Regression Analysis
+
+(I am following the approach mentioned in OpenIntro Stats Book).
+
+Our objective is to predict the SalePrice based on efficient model! 
+
+To get started making linear model using all 76 explanatory variables in Ames Housing Price dataset
+
+### Full Model
+
+```{r}
+full_model <- lm(SalePrice ~ ., data =df_hprice)
+
+summary(full_model)
+```
+
+Summary Statistics tells that 91.4 % of variability in SalesPrice can be explained by our least square Full model!
+
+Now, in this full model there are all explanatory variables but some of them are statistically significant and some are not. So in order to identify the features that more helpful in explaining the SalesPrice.
+
+There are two strategies -> Backward Elimination and Forward Selection (Using Adjusted R Square or p values in each strategy)
+
+
+We ill be using the Backward Elimination Strategy to identify the best explanatory variables that are contributing in explaining the SalesPrice (Target Variable)
+
+### Identifying explanatory variables using Backward Elimination Strategy
+
+I am using step function (Just following the approach mentioned in OpenIntro Stats Book)
+because I haven't yet studied about multicollinearity problem!
+
+```{r}
+new_model <- step(full_model, direction = "backward")
+
+summary(new_model)
+```
+
+After applying the backward elimination strategy our Adjusted R squared has little bit improved From 91.4% to 91.62%.
+
+And new_model consist of 44 explanatory variables compare to full_model that consist of all 76 explanatory variables.
+
+Hence our new_model is better than full_model.
+
+### Model Diagnositic
+
+1) Linearity
+
+```{r}
+ggplot(data = new_model, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+```
+Residuals are not nearly random scatterd which means there is a need for transformation in explanatory variables and also condition of constant variability in residuals is violated
+
+2) Nearly Normal Residuals
+```{r}
+ggplot(data = new_model, aes(x = .resid)) +
+  geom_histogram() +
+  xlab("Residuals")
+```
+
+There are some positive outliers in extreme right!
+
+```{r}
+ggplot(data = new_model, aes(sample = .resid)) +
+  stat_qq()
+```
+Normal Quantile-Quantile also shows that new_model residuals are not nearly normal. 
+
+
+Hence the new_model can also be improved!
+
+by appropriate transformations in explanatory varaibles.
+by tackling multicollinearity problem. 
+
+
+
+
+
+
+
